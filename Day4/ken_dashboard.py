@@ -19,6 +19,7 @@ import plotly.express as px
 import streamlit as st
 from datetime import datetime
 
+
 @st.cache_data
 def load_data() -> list[pd.DataFrame]:
     """
@@ -117,7 +118,7 @@ def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
     df_agg["VIEWS / SUBS_GAINED"] = df_agg["Views"] / df_agg["Subscribers Gained"]
 
     # order by video publish date
-    df_agg.sort_values('Video Publish Time', ascending = False, inplace = True)
+    df_agg.sort_values("Video Publish Time", ascending=False, inplace=True)
 
     return df_agg
 
@@ -138,11 +139,28 @@ def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
     Euan Newlands       05 Feb 2024     v0.1 - Initial Script
     """
     # string to datetime conversion, first formatting Sept -> 3 letter variation
-    df_time["Date"] = df_time["Date"].apply(lambda x: x.replace('Sept','Sep'))
-    df_time["Date"] = pd.to_datetime(df_time["Date"], format = '%d %b %Y')
+    df_time["Date"] = df_time["Date"].apply(lambda x: x.replace("Sept", "Sep"))
+    df_time["Date"] = pd.to_datetime(df_time["Date"], format="%d %b %Y")
 
     return df_time
-    
+
+
+def diff_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
+    """
+    DESCR:
+        This function calculates median
+    PARAMS:
+        df_agg  - dataframe containing the raw data of video interactions, aggregated
+                    by Country and Subscriber status
+    RETURNS
+        df_time - the re-engineered dataframe, with the same raw data values
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       05 Feb 2024     v0.1 - Initial Script
+    """
+    diff_df_agg = df_agg.copy()
+
 
 def build_sidebar():
     """
@@ -158,7 +176,11 @@ def build_sidebar():
     -----------------------------------------------------------------------------------
     Euan Newlands       05 Feb 2024     v0.1 - Initial Script
     """
-    st.sidebar.selectbox('Individual or Aggregated View', ['Aggregate Metrics','Individual Video Analysis'])
+    st.sidebar.selectbox(
+        "Individual or Aggregated View",
+        ["Aggregate Metrics", "Individual Video Analysis"],
+    )
+
 
 def run_it():
     # load csvs
@@ -167,6 +189,8 @@ def run_it():
     # engineer dfs
     df_agg = engineer_df_agg(df_agg)
     df_time = engineer_df_time(df_time)
+
+    # build streamlut app
     build_sidebar()
 
 
