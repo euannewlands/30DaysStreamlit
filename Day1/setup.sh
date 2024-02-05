@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # create & activate new conda env: streamlit environment
-conda create -n stenv python=3.11
-conda activate stenv
+conda create -n stenv python=3.11 -y
+conda.bat activate stenv
 
-# install streamlit
-pip install streamlit -y
+# install streamlit,with auto yes to install/update packages
+yes | pip install streamlit
 
 # launch streamlit demo
 streamlit hello
