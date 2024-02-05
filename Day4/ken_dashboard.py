@@ -19,7 +19,7 @@ import plotly.express as px
 import streamlit as st
 from datetime import datetime
 
-
+@st.cache_data
 def load_data() -> list[pd.DataFrame]:
     """
     DESCR
@@ -44,11 +44,12 @@ def load_data() -> list[pd.DataFrame]:
     df_comments = pd.read_csv(".\data\All_Comments_Final.csv")
     df_time = pd.read_csv(".\data\Video_Performance_Over_Time.csv")
 
-    dfs = (df_agg, df_agg_sub, df_comments, df_time)
+    dfs = [df_agg, df_agg_sub, df_comments, df_time]
 
     return dfs
 
 
+@st.cache_data
 def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
     """
     DESCR:
@@ -121,7 +122,7 @@ def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
     return df_agg
 
 
-
+@st.cache_data
 def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
     """
     DESCR:
@@ -143,6 +144,22 @@ def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
     return df_time
     
 
+def build_sidebar():
+    """
+    DESCR:
+        This function contains all the streamlit code to build out the sidebar on the streamlit
+        app. Initially, the siderbar only has a simple select box with 2 options
+    PARAMS:
+        None
+    RETURNS
+        None
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       05 Feb 2024     v0.1 - Initial Script
+    """
+    st.sidebar.selectbox('Individual or Aggregated View', ['Aggregate Metrics','Individual Video Analysis'])
+
 def run_it():
     # load csvs
     df_agg, df_agg_sub, df_comments, df_time = load_data()
@@ -150,6 +167,7 @@ def run_it():
     # engineer dfs
     df_agg = engineer_df_agg(df_agg)
     df_time = engineer_df_time(df_time)
+    build_sidebar()
 
 
 if __name__ == "__main__":
