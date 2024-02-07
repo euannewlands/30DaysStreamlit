@@ -8,9 +8,15 @@ Description:    A streamlit dashboard displaying insights from Ken Jee's YouTube
 
 Classes:        n/a
 
-Methods:        load_data        - loads csv data to pandas dataframes
-                engineer_df_agg  - formats columns and data types of one of the datasets
-                engineer_df_time - formats data types in another dataset
+Methods:        load_data               - loads csv data to pandas dataframes
+                engineer_df_agg         - formats columns and data types of one of the datasets
+                engineer_df_time        - formats data types in another dataset
+                get_vid_stat_trends     - compares video stats to a median baseline
+                get_header_stats        - selects a set of metrics to have as Big Numbers
+                build_sidebar           - frontend formatting of the streamlit sidebar
+                _format_header_metrics  - frontend formatting of the Big Numbers
+                _display_df_agg_diff    - frontend formatting of a pandas dataframe
+                total_dashboard         - main method for building the entire frontend
 """
 
 import os
@@ -284,7 +290,7 @@ def build_sidebar() -> str:
     return page
 
 
-def _format_header(header_metrics: pd.DataFrame, header_trends: pd.DataFrame) -> None:
+def _format_header_metrics(header_metrics: pd.DataFrame, header_trends: pd.DataFrame) -> None:
     """
     DESCR:
         This function formats the header statistics to be in 2rows x 5columns
@@ -311,10 +317,28 @@ def _format_header(header_metrics: pd.DataFrame, header_trends: pd.DataFrame) ->
             )
         
 
+def _display_df_agg_diff(df_agg_diff: pd.DataFrame) -> None:
+    """TODO: add docstring
+    """
+    df_agg_diff['PUBLISH_DATE'] = df_agg_diff['Video Publish Time'].apply(lambda x: x.date())
+    df_agg_diff_final = df_agg_diff.loc[:,[
+        'Video Title',
+        'PUBLISH_DATE',
+        'Views',
+        'Likes',
+        'Subscribers',
+        'AVG_DURATION_SEC',
+        'ENGAGEMENT_RATIO',
+        'VIEWS / SUBS_GAINED'
+    ]]
+    st.dataframe(df_agg_diff_final, hide_index = True)
+
+
 def total_dashboard(
         page: str,
         header_metrics: pd.DataFrame,
-        header_trends: pd.DataFrame
+        header_trends: pd.DataFrame,
+        df_agg_diff: pd.DataFrame
     ) -> None:
     """
     DESCR:
@@ -335,7 +359,8 @@ def total_dashboard(
     Euan Newlands       07 Feb 2024     v0.1 - Initial Script
     """
     if page == 'Aggregate Metrics':
-        _format_header(header_metrics, header_trends)
+        _format_header_metrics(header_metrics, header_trends)
+        _display_df_agg_diff(df_agg_diff)
 
 
     if page == 'Individual Video Analysis':
@@ -356,7 +381,7 @@ def run_it():
 
     # build streamlit app
     page = build_sidebar()
-    total_dashboard(page, header_metrics, header_trends)
+    total_dashboard(page, header_metrics, header_trends, df_agg_diff)
 
 
 if __name__ == "__main__":
