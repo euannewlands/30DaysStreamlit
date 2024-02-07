@@ -12,6 +12,8 @@ Methods:        load_data        - loads csv data to pandas dataframes
                 engineer_df_agg  - formats columns and data types of one of the datasets
                 engineer_df_time - formats data types in another dataset
 """
+
+import os
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -35,22 +37,29 @@ def load_data() -> list[pd.DataFrame]:
     Summary of Changes
     -----------------------------------------------------------------------------------
     Euan Newlands       05 Feb 2024     v0.1 - Initial Script
+    Euan Newlands       07 Feb 2024     v0.2 - Added os.path.join, which is an operating
+                                                system agnostic method of handling paths
     """
-    # remove first row from dataframe, which is the YT calculated totals
-    df_agg = pd.read_csv(".\data\Aggregated_Metrics_By_Video.csv").iloc[1:, :]
-
-    df_agg_sub = pd.read_csv(
-        ".\data\Aggregated_Metrics_By_Country_And_Subscriber_Status.csv"
+    # get file paths
+    agg_path = os.path.join(".", "data", "Aggregated_Metrics_By_Video.csv")
+    agg_sub_path = os.path.join(
+        ".", "data", "Aggregated_Metrics_By_Country_And_Subscriber_Status.csv"
     )
-    df_comments = pd.read_csv(".\data\All_Comments_Final.csv")
-    df_time = pd.read_csv(".\data\Video_Performance_Over_Time.csv")
+    comments_path = os.path.join(".", "data", "All_Comments_Final.csv")
+    time_path = os.path.join(".", "data", "Video_Performance_Over_Time.csv")
+
+    # remove first row from dataframe, which is the YT calculated totals
+    df_agg = pd.read_csv(agg_path).iloc[1:, :]
+    # load remining files as are
+    df_agg_sub = pd.read_csv(agg_sub_path)
+    df_comments = pd.read_csv(comments_path)
+    df_time = pd.read_csv(time_path)
 
     dfs = [df_agg, df_agg_sub, df_comments, df_time]
 
     return dfs
 
 
-@st.cache_data
 def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
     """
     DESCR:
@@ -123,7 +132,6 @@ def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
     return df_agg
 
 
-@st.cache_data
 def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
     """
     DESCR:
@@ -145,24 +153,115 @@ def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
     return df_time
 
 
-def diff_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
+def get_vid_stat_trends(df_agg: pd.DataFrame) -> pd.DataFrame:
     """
     DESCR:
-        This function calculates median
+        This function calculates median statistics over 12 months, and compares each
+        individual video's statistics against this median baseline. The median value is
+        subtracted from the video's statistics to calculate how the video perfromed against
+        the median baseline. The returned values are used to display which video's performed
+        best/worst on the dashboard.
     PARAMS:
-        df_agg  - dataframe containing the raw data of video interactions, aggregated
-                    by Country and Subscriber status
+        df_agg      - dataframe containing the raw data of video interactions, aggregated
+                        by Country and Subscriber status
     RETURNS
-        df_time - the re-engineered dataframe, with the same raw data values
+        df_agg_diff - a dataframe containing the % difference of video stats compared to
+                        the 12-month median values.
     -----------------------------------------------------------------------------------
     Summary of Changes
     -----------------------------------------------------------------------------------
-    Euan Newlands       05 Feb 2024     v0.1 - Initial Script
+    Euan Newlands       07 Feb 2024     v0.1 - Initial Script
     """
-    diff_df_agg = df_agg.copy()
+    # initialise a copy to work with
+    df_agg_diff = df_agg.copy()
+    # find median on numeric data, only if record within 12 months to latest video
+    metric_date_12month = df_agg_diff["Video Publish Time"].max() - pd.DateOffset(
+        months=12
+    )
+    median_12mo_agg = df_agg_diff[
+        df_agg_diff["Video Publish Time"] >= metric_date_12month
+    ].median(numeric_only=True)
+
+    # compare numeric column records to the 12 month median values
+    numeric_cols = np.array(
+        (df_agg_diff.dtypes == "int64") | (df_agg_diff.dtypes == "float64")
+    )
+    df_agg_diff.iloc[:, numeric_cols] = 100*(
+        df_agg_diff.iloc[:, numeric_cols] - median_12mo_agg
+    ).div(median_12mo_agg)
+
+    return df_agg_diff
 
 
-def build_sidebar():
+def get_header_stats(df_agg: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
+    """
+    DESCR:
+        Extracts the 6 month median for select numeric video performance metrics.
+        The trends of these stats are determined by calculating the percentage change
+        between the 6 month and 12 month medians. Both the 6 month median metrics and
+        their respective trends (compared to 12 month medians) will be included as
+        header metrics on the streamlit dashboard.
+        The metrics returned are;
+        - Video Publish Time
+        - Views
+        - Likes
+        - Subscribers
+        - Shares
+        - Comments Added
+        - RPM(USD)
+        - Average % Viewed
+        - AVERAGE_DURATION_SEC
+        - ENGAGEMENT_RATIO
+        - VIEWS / SUBS_GAINED
+        
+    PARAMS:
+        df_agg              - dataframe containing the raw data of video interactions, aggregated
+                                by Country and Subscriber status
+    RETURNS
+        metric_date_6month  - dataframe containing the 6 month median for the select
+                                numeric metrics
+        metric_trends_df    - dataframe containing the percentage change in the 6 month
+                                medians compared to their 12 month median counterparts
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       07 Feb 2024     v0.1 - Initial Script
+    """
+    header_metrics_df = df_agg[[
+        "Video Publish Time",
+        "Views",
+        "Likes",
+        "Subscribers",
+        "Shares",
+        "Comments Added",
+        "RPM(USD)",
+        "Average % Viewed",
+        "AVG_DURATION_SEC",
+        "ENGAGEMENT_RATIO",
+        "VIEWS / SUBS_GAINED"
+    ]]
+
+    # find median on numeric data, only if record within 6 & 12 months to latest video
+    metric_date_12month = header_metrics_df["Video Publish Time"].max() - pd.DateOffset(
+        months=12
+    )
+    metric_date_6month = header_metrics_df["Video Publish Time"].max() - pd.DateOffset(
+        months=6
+    )
+    median_12mo_metrics = header_metrics_df[
+        header_metrics_df["Video Publish Time"] >= metric_date_12month
+    ].median(numeric_only=True)
+
+    median_6mo_metrics = header_metrics_df[
+        header_metrics_df["Video Publish Time"] >= metric_date_6month
+    ].median(numeric_only=True)
+
+    metric_trends_df = 100*(median_6mo_metrics - median_12mo_metrics).div(median_12mo_metrics)
+
+    return median_6mo_metrics, metric_trends_df
+
+
+def build_sidebar() -> str:
     """
     DESCR:
         This function contains all the streamlit code to build out the sidebar on the streamlit
@@ -170,16 +269,77 @@ def build_sidebar():
     PARAMS:
         None
     RETURNS
-        None
+        page    - the value which represents which content the user wants to display,
+                    like a page
     -----------------------------------------------------------------------------------
     Summary of Changes
     -----------------------------------------------------------------------------------
     Euan Newlands       05 Feb 2024     v0.1 - Initial Script
     """
-    st.sidebar.selectbox(
+    page = st.sidebar.selectbox(
         "Individual or Aggregated View",
         ["Aggregate Metrics", "Individual Video Analysis"],
     )
+
+    return page
+
+
+def _format_header(header_metrics: pd.DataFrame, header_trends: pd.DataFrame) -> None:
+    """
+    DESCR:
+        This function formats the header statistics to be in 2rows x 5columns
+    PARAMS:
+        header_metrics  - dataframe containing the 6 month median for select
+                                numeric metrics
+        header_trends   - dataframe containing the percentage change in the 6 month
+                                medians compared to their 12 month median counterparts
+    RETURNS
+        None
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       07 Feb 2024     v0.1 - Initial Script
+    """
+    columns = st.columns(5) # creates 5 side by side containers
+
+    for i, met in enumerate(header_metrics.index):
+        with columns[i%5]:  # sorts into 2 rows of 5
+            st.metric(
+                label= met.replace('_',' ').title(),       # make nicer to read
+                value = header_metrics[met].round(1),
+                delta = f"{header_trends[met].round(2)}%"
+            )
+        
+
+def total_dashboard(
+        page: str,
+        header_metrics: pd.DataFrame,
+        header_trends: pd.DataFrame
+    ) -> None:
+    """
+    DESCR:
+        This function contains all the streamlit code to build out the total streamlit app.
+        There are 2 pages; the user can choose a page by interacting with the selectbox in
+        the sidebar.
+    PARAMS:
+        page    - value of page returned by the sidebar select box on the streamlit app
+        header_metrics  - dataframe containing the 6 month median for select
+                                numeric metrics
+        header_trends   - dataframe containing the percentage change in the 6 month
+                                medians compared to their 12 month median counterparts
+    RETURNS
+        None    -
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       07 Feb 2024     v0.1 - Initial Script
+    """
+    if page == 'Aggregate Metrics':
+        _format_header(header_metrics, header_trends)
+
+
+    if page == 'Individual Video Analysis':
+        st.write('Individual Video Analysis')
 
 
 def run_it():
@@ -190,8 +350,13 @@ def run_it():
     df_agg = engineer_df_agg(df_agg)
     df_time = engineer_df_time(df_time)
 
-    # build streamlut app
-    build_sidebar()
+    # find video metric trends
+    df_agg_diff = get_vid_stat_trends(df_agg)
+    header_metrics, header_trends = get_header_stats(df_agg)
+
+    # build streamlit app
+    page = build_sidebar()
+    total_dashboard(page, header_metrics, header_trends)
 
 
 if __name__ == "__main__":
