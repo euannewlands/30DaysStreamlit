@@ -29,7 +29,7 @@ from datetime import datetime
 
 
 @st.cache_data
-def load_data() -> list[pd.DataFrame]:
+def load_data(path_to_data: str) -> list[pd.DataFrame]:
     """
     DESCR
         This function loads the data, downloaded from Kaggle, from .csv files to
@@ -47,12 +47,12 @@ def load_data() -> list[pd.DataFrame]:
                                                 system agnostic method of handling paths
     """
     # get file paths
-    agg_path = os.path.join(".", "data", "Aggregated_Metrics_By_Video.csv")
+    agg_path = os.path.join(path_to_data, "Aggregated_Metrics_By_Video.csv")
     agg_sub_path = os.path.join(
-        ".", "data", "Aggregated_Metrics_By_Country_And_Subscriber_Status.csv"
+        path_to_data, "Aggregated_Metrics_By_Country_And_Subscriber_Status.csv"
     )
-    comments_path = os.path.join(".", "data", "All_Comments_Final.csv")
-    time_path = os.path.join(".", "data", "Video_Performance_Over_Time.csv")
+    comments_path = os.path.join(path_to_data, "All_Comments_Final.csv")
+    time_path = os.path.join(path_to_data, "Video_Performance_Over_Time.csv")
 
     # remove first row from dataframe, which is the YT calculated totals
     df_agg = pd.read_csv(agg_path).iloc[1:, :]
@@ -119,7 +119,7 @@ def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
         lambda x: datetime.strptime(x, "%H:%M:%S")
     )
     df_agg["AVG_DURATION_SEC"] = df_agg["Average View Duration"].apply(
-        lambda x: x.second + x.minute * 60 + x.hour * 3600
+        lambda x: x.second + x.minute * 60. + x.hour * 3600.
     )
 
     # "Cool data points" from raw data
@@ -192,7 +192,7 @@ def get_vid_stat_trends(df_agg: pd.DataFrame) -> pd.DataFrame:
     numeric_cols = np.array(
         (df_agg_diff.dtypes == "int64") | (df_agg_diff.dtypes == "float64")
     )
-    df_agg_diff.iloc[:, numeric_cols] = 100*(
+    df_agg_diff.iloc[:, numeric_cols] = (
         df_agg_diff.iloc[:, numeric_cols] - median_12mo_agg
     ).div(median_12mo_agg)
 
@@ -262,7 +262,7 @@ def get_header_stats(df_agg: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
         header_metrics_df["Video Publish Time"] >= metric_date_6month
     ].median(numeric_only=True)
 
-    metric_trends_df = 100*(median_6mo_metrics - median_12mo_metrics).div(median_12mo_metrics)
+    metric_trends_df = (median_6mo_metrics - median_12mo_metrics).div(median_12mo_metrics)
 
     return median_6mo_metrics, metric_trends_df
 
@@ -313,13 +313,49 @@ def _format_header_metrics(header_metrics: pd.DataFrame, header_trends: pd.DataF
             st.metric(
                 label= met.replace('_',' ').title(),       # make nicer to read
                 value = header_metrics[met].round(1),
-                delta = f"{header_trends[met].round(2)}%"
+                delta = "{:.2%}".format(header_trends[met])
             )
         
 
-def _display_df_agg_diff(df_agg_diff: pd.DataFrame) -> None:
-    """TODO: add docstring
+def style_positive_negative(val: int|float) -> str|None:
     """
+    DESCR:
+        A function to style values in a dataframe, using .style.map()
+    PARAMS:
+        val     - a dataframe containing the % difference of video stats compared to
+                                the 12-month median values.
+    RETURNS
+        format  - the CSS format to apply to the cell the value is in
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       10 Feb 2024     v0.1 - Initial Script
+    """
+    try:
+        format = "color:lime;" if val > 0 else "color:red;"
+        return format
+    except TypeError:
+        # ignore any non numeric values
+        pass
+
+
+def _display_df_agg_diff(df_agg_diff: pd.DataFrame) -> None:
+    """
+    DESCR:
+        This function displays a dataframe containing the trends of numeric statistics
+        captured in the aggregated by video dataset. The function then colours the +/-
+        by green/red.
+    PARAMS:
+        df_agg_diff         - a dataframe containing the % difference of video stats compared to
+                                the 12-month median values.
+    RETURNS
+        df_agg_diff_final   - the same dataframe as above but with colour coded values
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       07 Feb 2024     v0.1 - Initial Script
+    """
+    # extract select information to display in DF
     df_agg_diff['PUBLISH_DATE'] = df_agg_diff['Video Publish Time'].apply(lambda x: x.date())
     df_agg_diff_final = df_agg_diff.loc[:,[
         'Video Title',
@@ -331,6 +367,28 @@ def _display_df_agg_diff(df_agg_diff: pd.DataFrame) -> None:
         'ENGAGEMENT_RATIO',
         'VIEWS / SUBS_GAINED'
     ]]
+
+    # rename columns for display
+    df_agg_diff_final.columns = [
+        'Video Title',
+        'Publish Date',
+        'Views',
+        'Likes',
+        'Subscribers',
+        'Avg Watch Duration (s)',
+        'Engagement ratio',
+        'Views per Sub Gained'
+    ]
+
+    # format +/- columns (numeric columns only) into coloured % deltas
+    numeric_cols = df_agg_diff_final.median(numeric_only=True).index.to_list()  # find numeric col names
+    text_formats = {}
+    for c in numeric_cols:
+        text_formats[c] = '{:.1%}'.format
+    df_agg_diff_final = df_agg_diff_final.style.map(style_positive_negative) # colour when dtype is numeric
+    df_agg_diff_final = df_agg_diff_final.format(text_formats)        # convert numeric to % format
+
+    # display formatted df to app
     st.dataframe(df_agg_diff_final, hide_index = True)
 
 
@@ -368,14 +426,18 @@ def total_dashboard(
 
 
 def run_it():
-    # load csvs
-    df_agg, df_agg_sub, df_comments, df_time = load_data()
+    # format page
+    st.set_page_config(layout='wide')
 
-    # engineer dfs
+    # load csvs
+    path_to_data = "/Volumes/Euans/code projects/30DaysStreamlit/Day4/data"
+    df_agg, df_agg_sub, df_comments, df_time = load_data(path_to_data)
+
+    # engineer dfs - column names and data types
     df_agg = engineer_df_agg(df_agg)
     df_time = engineer_df_time(df_time)
 
-    # find video metric trends
+    # find video metric trends by comparing to a 12 month median baseline
     df_agg_diff = get_vid_stat_trends(df_agg)
     header_metrics, header_trends = get_header_stats(df_agg)
 
