@@ -11,6 +11,8 @@ Classes:        n/a
 Methods:        load_data               - loads csv data to pandas dataframes
                 engineer_df_agg         - formats columns and data types of one of the datasets
                 engineer_df_time        - formats data types in another dataset
+                engineer_df_time_diff   - combines df_agg & df_time to find performance from
+                                            publish date
                 get_vid_stat_trends     - compares video stats to a median baseline
                 get_header_stats        - selects a set of metrics to have as Big Numbers
                 build_sidebar           - frontend formatting of the streamlit sidebar
@@ -21,6 +23,8 @@ Methods:        load_data               - loads csv data to pandas dataframes
                 _audience_sample        - group viwer country into distinct categories
                 _engineer_subscriber_data - add columns and sort dataframe for display
                 _vid_subscriber_chart   - display a plotly chart of viewers, grouped by country
+                _engineer_avg_vid_performances - find 20,50,80th percentile view counts per day
+                _engineer_vid_performance - find running total for view counts of a selected video
                 total_dashboard         - main method for building the entire frontend
 """
 
@@ -159,6 +163,33 @@ def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
     df_time["Date"] = pd.to_datetime(df_time["Date"], format="%d %b %Y")
 
     return df_time
+
+
+def engineer_df_time_diff(df_agg: pd.DataFrame, df_time: pd.DataFrame) -> pd.DataFrame:
+    """Combines video publish date from df_agg and daily video performance data from df_time
+    to return a dataframe that contains the video's performance in days since published. Note
+    df_time_diff is filtered to only contain data from the latest 12 months
+    
+    Args:
+        df_agg      - dataframe containing the raw data of overall video metrics
+        df_time     - dataframe containing video performance on a specific day
+    Returns:
+        df_time_diff_yr - a dataframe containing video performance statistics since
+                            it's publised day (or perfromance from 1 yr ago onwards)
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       11 Feb 2024     v0.1 - Initial Script
+    """
+    df_time_diff = pd.merge(df_time, df_agg.loc[:,[
+        "Video", "Video Publish Time"
+    ]], left_on='External Video ID', right_on='Video')
+
+    df_time_diff['DAYS_PUBLISHED'] = (
+        df_time_diff['Date'] - df_time_diff['Video Publish Time']
+    ).dt.days
+
+    return df_time_diff
 
 
 def get_vid_stat_trends(df_agg: pd.DataFrame) -> pd.DataFrame:
@@ -449,8 +480,153 @@ def _vid_subscriber_chart(df_agg_sub: pd.DataFrame):
     -----------------------------------------------------------------------------------
     Euan Newlands       10 Feb 2024     v0.1 - Initial Script
     """  
-    fig = px.bar(df_agg_sub, x='Views', y='Is Subscribed', color='COUNTRY', orientation='h')  
+    fig = px.bar(df_agg_sub, x='Views', y='Is Subscribed', color='COUNTRY', orientation='h')
+    st.subheader("Are viewers subscribed?")  
     st.plotly_chart(fig)
+
+
+def _engineer_avg_vid_performances(df_time_diff: pd.DataFrame):
+    """Calculate the running totals for the 20, 50, 80th percentile view count on
+    videos published in the last year. These values are used on a line chart to compare
+    video performance against.
+
+    Args:
+        df_time_diff - a dataframe containing video performance statistics since
+                        it's published day. 
+    Returns:
+        views_running_total - a dataframe containing the view count for 20,50 and 80 percentile
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       11 Feb 2024     v0.1 - Initial Script
+    """
+    # calculate averages from just the latest 12 months of videos
+    date_12mo = df_time_diff['Video Publish Time'].max() - pd.DateOffset(months=12)
+    df_time_diff_yr = df_time_diff[df_time_diff['Video Publish Time'] >= date_12mo]
+
+    # pivot table to find aggregates on Views, grouped by DAYS_PUBLISHED
+    views_by_day = pd.pivot_table(
+        df_time_diff_yr,
+        index ='DAYS_PUBLISHED',
+        values='Views',
+        aggfunc=[
+            np.mean,
+            np.median,
+            lambda x: np.percentile(x, 80),
+            lambda x: np.percentile(x, 20)
+        ]
+    ).reset_index()
+
+    # rename columns
+    views_by_day.columns = [
+        'DAYS_PUBLISHED',
+        'MEAN_NUM_VIEWS',
+        'MEDIAN_NUM_VIEWS',
+        '80pct_NUM_VIEWS',
+        '20pct_NUM_VIEWS'
+    ]
+
+    # trim dataset to only return first 30 days
+    views_by_day_30days = views_by_day[views_by_day['DAYS_PUBLISHED'].between(0,30)]
+
+    # create a df with the running total, to plot trajectories
+    views_running_total = views_by_day_30days.copy()
+    views_running_total.loc[:,[
+        'MEDIAN_NUM_VIEWS',
+        '80pct_NUM_VIEWS',
+        '20pct_NUM_VIEWS'
+    ]] = views_running_total.loc[:,[
+        'MEDIAN_NUM_VIEWS',
+        '80pct_NUM_VIEWS',
+        '20pct_NUM_VIEWS'
+    ]].cumsum()
+
+    return views_running_total
+
+
+def _engineer_vid_performance(agg_time_filtered: pd.DataFrame) -> pd.DataFrame:
+    """Return the running total view count for the selected video as a dataframe
+
+    Args:
+        agg_time_filtered - a dataframe containing a single video's statistics
+    Returns:
+        run_total - a dataframe containing the running view count for the selected video
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       11 Feb 2024     v0.1 - Initial Script
+    """
+    first30 = agg_time_filtered[agg_time_filtered['DAYS_PUBLISHED'].between(0,30)]
+    first30 = first30.sort_values('DAYS_PUBLISHED')
+    first30.loc[:,['Views']] = first30.loc[:,['Views']].cumsum()
+
+    run_total = first30.loc[:,['Video Title','DAYS_PUBLISHED','Views']]
+
+    return run_total
+
+
+def _vid_performance_chart(
+        vid_performance: pd.DataFrame,
+        views_running_total:pd.DataFrame
+    ) -> None:
+    """Plot and display a plotly figure of the selected video's running view count. The graph
+    contains 20, 50 and 80 percentile lines for video comparison.
+
+    Args:
+        vid_performance - a dataframe containing a single video's views running total
+        views_running_total - a dataframe containing the 20, 50, 80 percentile views running totals
+    Returns:
+        None
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       11 Feb 2024     v0.1 - Initial Script
+    """
+    st.subheader('How did the video perform?')
+    line_fig = go.Figure()
+    # add 20th percentile line
+    line_fig.add_trace(go.Scatter(
+        x=views_running_total['DAYS_PUBLISHED'],
+        y=views_running_total['20pct_NUM_VIEWS'],
+        mode='lines',
+        name='20th Percentile',
+        line = dict(color='purple',dash='dash')
+    ))
+
+     # add median line
+    line_fig.add_trace(go.Scatter(
+        x=views_running_total['DAYS_PUBLISHED'],
+        y=views_running_total['MEDIAN_NUM_VIEWS'],
+        mode='lines',
+        name='50th Percentile',
+        line = dict(color='royalblue',dash='dash')
+    ))
+
+    # add 80th percentile line
+    line_fig.add_trace(go.Scatter(
+        x=views_running_total['DAYS_PUBLISHED'],
+        y=views_running_total['80pct_NUM_VIEWS'],
+        mode='lines',
+        name='80th Percentile',
+        line = dict(color='black',dash='dash')
+    ))
+
+    # add median line
+    line_fig.add_trace(go.Scatter(
+        x=vid_performance['DAYS_PUBLISHED'],
+        y=vid_performance['Views'],
+        mode='lines',
+        name='Current Video',
+        line = dict(color='firebrick',width=8)
+    ))
+
+    line_fig.update_layout(
+        title='Views Comparison: First 30 Days',
+        xaxis_title='Days Since Published',
+        yaxis_title='Cumulative View Count'
+        )
+
+    st.plotly_chart(line_fig)
 
 
 def total_dashboard(
@@ -459,7 +635,8 @@ def total_dashboard(
         header_trends: pd.DataFrame,
         df_agg_diff: pd.DataFrame,
         df_agg: pd.DataFrame,
-        df_agg_sub: pd.DataFrame
+        df_agg_sub: pd.DataFrame,
+        df_time_diff: pd.DataFrame
     ) -> None:
     """This function contains all the streamlit code to build out the total streamlit app.
     There are 2 pages; the user can choose a page by interacting with the selectbox in
@@ -487,11 +664,18 @@ def total_dashboard(
     if page == 'Individual Video Analysis':
         video = _video_select(df_agg)
         if video != None:
-            # get just selected video data
+            # get just selected video data, for subscribers
             agg_filtered = df_agg[df_agg['Video Title'] == video]
             agg_sub_filtered = df_agg_sub[df_agg_sub['Video Title'] == video]
             agg_sub_filtered = _engineer_subscriber_data(agg_sub_filtered)
             _vid_subscriber_chart(agg_sub_filtered)
+
+            # get just selected video data, for view performance over 30 days
+            # get data for just most recent 12 months
+            views_running_total = _engineer_avg_vid_performances(df_time_diff)
+            agg_time_filtered = df_time_diff[df_time_diff['Video Title'] == video]
+            vid_performance = _engineer_vid_performance(agg_time_filtered)
+            _vid_performance_chart(vid_performance, views_running_total)
 
 
 def run_it(path_to_data):
@@ -506,6 +690,9 @@ def run_it(path_to_data):
     df_agg = engineer_df_agg(df_agg)
     df_time = engineer_df_time(df_time)
 
+    # merge dfs to find video perfomance from publish date
+    df_time_diff = engineer_df_time_diff(df_agg, df_time)
+
     # find video metric trends by comparing to a 12 month median baseline
     df_agg_diff = get_vid_stat_trends(df_agg)
     header_metrics, header_trends = get_header_stats(df_agg)
@@ -518,7 +705,8 @@ def run_it(path_to_data):
         header_trends,
         df_agg_diff,
         df_agg,
-        df_agg_sub
+        df_agg_sub,
+        df_time_diff
     )
 
 
