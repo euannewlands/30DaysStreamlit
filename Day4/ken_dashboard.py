@@ -15,7 +15,12 @@ Methods:        load_data               - loads csv data to pandas dataframes
                 get_header_stats        - selects a set of metrics to have as Big Numbers
                 build_sidebar           - frontend formatting of the streamlit sidebar
                 _format_header_metrics  - frontend formatting of the Big Numbers
+                _style_positive_negative - colour +ve and -ve numbers green and red
                 _display_df_agg_diff    - frontend formatting of a pandas dataframe
+                _video_select           - display a selectbox for user to select video
+                _audience_sample        - group viwer country into distinct categories
+                _engineer_subscriber_data - add columns and sort dataframe for display
+                _vid_subscriber_chart   - display a plotly chart of viewers, grouped by country
                 total_dashboard         - main method for building the entire frontend
 """
 
@@ -30,13 +35,12 @@ from datetime import datetime
 
 @st.cache_data
 def load_data(path_to_data: str) -> list[pd.DataFrame]:
-    """
-    DESCR
-        This function loads the data, downloaded from Kaggle, from .csv files to
-        Pandas DataFrames.
-    PARAMS
+    """This function loads the data, downloaded from Kaggle, from .csv files to
+    Pandas DataFrames.
+    
+    Args:
         None
-    RETURNS
+    Returns:
         dfs -   a list of dataframes, with each containing data from one of
                 the .csv raw data files
     -----------------------------------------------------------------------------------
@@ -67,19 +71,18 @@ def load_data(path_to_data: str) -> list[pd.DataFrame]:
 
 
 def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
-    """
-    DESCR:
-        This function modifies the raw df_agg dataframe by renaming columns to be
-        more readable and enforcing the following;
-            - `Video Publish Time` data type conversion; pd.object -> pd.datetime64ns
-            - `Average View Duration` data type conversion; pd.object -> pd.datetime64ns
-            - `AVG_DURATION_SEC` column added
-            - `ENGAGEMENT_RATIO` column added
-            - `VIEWS / SUBS_GAINED` column added
-    PARAMS:
+    """This function modifies the raw df_agg dataframe by renaming columns to be
+    more readable and enforcing the following;
+        - `Video Publish Time` data type conversion; pd.object -> pd.datetime64ns
+        - `Average View Duration` data type conversion; pd.object -> pd.datetime64ns
+        - `AVG_DURATION_SEC` column added
+        - `ENGAGEMENT_RATIO` column added
+        - `VIEWS / SUBS_GAINED` column added
+
+    Args:
         df_agg  - dataframe containing the raw data of video interactions, aggregated
                     by Country and Subscriber status
-    RETURNS
+    Returns:
         df_agg  - the re-engineered dataframe, with the same raw data values
     -----------------------------------------------------------------------------------
     Summary of Changes
@@ -139,13 +142,12 @@ def engineer_df_agg(df_agg: pd.DataFrame) -> pd.DataFrame:
 
 
 def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
-    """
-    DESCR:
-        This function modifies the raw df_time dataframe by formatting the time column
-        data type from string to datetime.
-    PARAMS:
+    """This function modifies the raw df_time dataframe by formatting the time column
+    data type from string to datetime.
+    
+    Args:
         df_time - dataframe containing the raw data of video performance over time
-    RETURNS
+    Returns:
         df_time - the re-engineered dataframe, with the same raw data values
     -----------------------------------------------------------------------------------
     Summary of Changes
@@ -160,17 +162,16 @@ def engineer_df_time(df_time: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_vid_stat_trends(df_agg: pd.DataFrame) -> pd.DataFrame:
-    """
-    DESCR:
-        This function calculates median statistics over 12 months, and compares each
-        individual video's statistics against this median baseline. The median value is
-        subtracted from the video's statistics to calculate how the video perfromed against
-        the median baseline. The returned values are used to display which video's performed
-        best/worst on the dashboard.
-    PARAMS:
+    """This function calculates median statistics over 12 months, and compares each
+    individual video's statistics against this median baseline. The median value is
+    subtracted from the video's statistics to calculate how the video perfromed against
+    the median baseline. The returned values are used to display which video's performed
+    best/worst on the dashboard.
+    
+    Args:
         df_agg      - dataframe containing the raw data of video interactions, aggregated
                         by Country and Subscriber status
-    RETURNS
+    Returns:
         df_agg_diff - a dataframe containing the % difference of video stats compared to
                         the 12-month median values.
     -----------------------------------------------------------------------------------
@@ -200,13 +201,11 @@ def get_vid_stat_trends(df_agg: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_header_stats(df_agg: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
-    """
-    DESCR:
-        Extracts the 6 month median for select numeric video performance metrics.
-        The trends of these stats are determined by calculating the percentage change
-        between the 6 month and 12 month medians. Both the 6 month median metrics and
-        their respective trends (compared to 12 month medians) will be included as
-        header metrics on the streamlit dashboard.
+    """Extracts the 6 month median for select numeric video performance metrics.
+    The trends of these stats are determined by calculating the percentage change
+    between the 6 month and 12 month medians. Both the 6 month median metrics and
+    their respective trends (compared to 12 month medians) will be included as
+    header metrics on the streamlit dashboard.
         The metrics returned are;
         - Video Publish Time
         - Views
@@ -220,10 +219,10 @@ def get_header_stats(df_agg: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
         - ENGAGEMENT_RATIO
         - VIEWS / SUBS_GAINED
         
-    PARAMS:
+    Args:
         df_agg              - dataframe containing the raw data of video interactions, aggregated
                                 by Country and Subscriber status
-    RETURNS
+    Returns:
         metric_date_6month  - dataframe containing the 6 month median for the select
                                 numeric metrics
         metric_trends_df    - dataframe containing the percentage change in the 6 month
@@ -268,13 +267,12 @@ def get_header_stats(df_agg: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
 
 
 def build_sidebar() -> str:
-    """
-    DESCR:
-        This function contains all the streamlit code to build out the sidebar on the streamlit
-        app. Initially, the siderbar only has a simple select box with 2 options
-    PARAMS:
+    """This function contains all the streamlit code to build out the sidebar on the streamlit
+    app. Initially, the siderbar only has a simple select box with 2 options
+    
+    Args:
         None
-    RETURNS
+    Returns:
         page    - the value which represents which content the user wants to display,
                     like a page
     -----------------------------------------------------------------------------------
@@ -291,15 +289,14 @@ def build_sidebar() -> str:
 
 
 def _format_header_metrics(header_metrics: pd.DataFrame, header_trends: pd.DataFrame) -> None:
-    """
-    DESCR:
-        This function formats the header statistics to be in 2rows x 5columns
-    PARAMS:
+    """This function formats the header statistics to be in 2rows x 5columns
+    
+    Args:
         header_metrics  - dataframe containing the 6 month median for select
                                 numeric metrics
         header_trends   - dataframe containing the percentage change in the 6 month
                                 medians compared to their 12 month median counterparts
-    RETURNS
+    Returns:
         None
     -----------------------------------------------------------------------------------
     Summary of Changes
@@ -317,14 +314,13 @@ def _format_header_metrics(header_metrics: pd.DataFrame, header_trends: pd.DataF
             )
         
 
-def style_positive_negative(val: int|float) -> str|None:
-    """
-    DESCR:
-        A function to style values in a dataframe, using .style.map()
-    PARAMS:
+def _style_positive_negative(val: int|float) -> str|None:
+    """A function to style values in a dataframe, using .style.map()
+    
+    Args:
         val     - a dataframe containing the % difference of video stats compared to
                                 the 12-month median values.
-    RETURNS
+    Returns:
         format  - the CSS format to apply to the cell the value is in
     -----------------------------------------------------------------------------------
     Summary of Changes
@@ -340,15 +336,14 @@ def style_positive_negative(val: int|float) -> str|None:
 
 
 def _display_df_agg_diff(df_agg_diff: pd.DataFrame) -> None:
-    """
-    DESCR:
-        This function displays a dataframe containing the trends of numeric statistics
-        captured in the aggregated by video dataset. The function then colours the +/-
-        by green/red.
-    PARAMS:
+    """This function displays a dataframe containing the trends of numeric statistics
+    captured in the aggregated by video dataset. The function then colours the +/-
+    by green/red.
+    
+    Args:
         df_agg_diff         - a dataframe containing the % difference of video stats compared to
                                 the 12-month median values.
-    RETURNS
+    Returns:
         df_agg_diff_final   - the same dataframe as above but with colour coded values
     -----------------------------------------------------------------------------------
     Summary of Changes
@@ -385,32 +380,101 @@ def _display_df_agg_diff(df_agg_diff: pd.DataFrame) -> None:
     text_formats = {}
     for c in numeric_cols:
         text_formats[c] = '{:.1%}'.format
-    df_agg_diff_final = df_agg_diff_final.style.map(style_positive_negative) # colour when dtype is numeric
+    df_agg_diff_final = df_agg_diff_final.style.map(_style_positive_negative) # colour when dtype is numeric
     df_agg_diff_final = df_agg_diff_final.format(text_formats)        # convert numeric to % format
 
     # display formatted df to app
     st.dataframe(df_agg_diff_final, hide_index = True)
 
 
+def _video_select(df_agg: pd.DataFrame) -> str:
+    """Creates a drop down selection box to launch individual video analysis for.
+    Return the name of the video that's selected.
+
+    PARAMS:
+        df_agg          - the dataframe that contains the distinct video names
+    RETURNS:
+        selected_video  - name of the video selected
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       10 Feb 2024     v0.1 - Initial Script
+    """
+    vid_names = df_agg['Video Title']
+    selected_video = st.selectbox('Pick a video', vid_names, index = None)
+
+    return selected_video
+
+
+def _audience_sample(country: str) -> str:
+    """Convert country code to country name. Function passed to Pandas apply method"""
+    if country == 'US':
+        return 'USA'
+    elif country == 'GB':
+        return 'United Kingdom'
+    elif country == 'IN':
+        return 'India'
+    else:
+        return 'Other'
+    
+
+def _engineer_subscriber_data(df_agg_sub: pd.DataFrame) -> pd.DataFrame:
+    """Add a Country column, engineered from the country code column. The dataframe is sorted
+    by is subscribed to ensure when a chart is displayed on top of the dataframe, it's
+    displayed in a consistent format (True above False).
+
+    Args:
+        df_agg_sub  - a dataframe for a single video, containing view data by subscriber
+    Returns:
+        df_agg_sub  - same dataframe with additional columns/sorting.
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       10 Feb 2024     v0.1 - Initial Script
+    """  
+    df_agg_sub['COUNTRY'] = df_agg_sub['Country Code'].apply(_audience_sample)
+    df_agg_sub.sort_values('Is Subscribed', inplace=True)  # sort to ensure display is consistent
+    return df_agg_sub
+
+
+def _vid_subscriber_chart(df_agg_sub: pd.DataFrame):
+    """Display a plotly chart of subscribed/non-subscribed video viewers, grouped by country
+
+    Args:
+        df_agg_sub  - a dataframe for a single video, containing view data by subscriber
+    Returns:
+        None
+    -----------------------------------------------------------------------------------
+    Summary of Changes
+    -----------------------------------------------------------------------------------
+    Euan Newlands       10 Feb 2024     v0.1 - Initial Script
+    """  
+    fig = px.bar(df_agg_sub, x='Views', y='Is Subscribed', color='COUNTRY', orientation='h')  
+    st.plotly_chart(fig)
+
+
 def total_dashboard(
         page: str,
         header_metrics: pd.DataFrame,
         header_trends: pd.DataFrame,
-        df_agg_diff: pd.DataFrame
+        df_agg_diff: pd.DataFrame,
+        df_agg: pd.DataFrame,
+        df_agg_sub: pd.DataFrame
     ) -> None:
-    """
-    DESCR:
-        This function contains all the streamlit code to build out the total streamlit app.
-        There are 2 pages; the user can choose a page by interacting with the selectbox in
-        the sidebar.
-    PARAMS:
-        page    - value of page returned by the sidebar select box on the streamlit app
+    """This function contains all the streamlit code to build out the total streamlit app.
+    There are 2 pages; the user can choose a page by interacting with the selectbox in
+    the sidebar.
+
+    Args:
+        page            - value of page returned by the sidebar select box on the streamlit app
+
         header_metrics  - dataframe containing the 6 month median for select
                                 numeric metrics
+
         header_trends   - dataframe containing the percentage change in the 6 month
                                 medians compared to their 12 month median counterparts
-    RETURNS
-        None    -
+    Returns:
+        None
     -----------------------------------------------------------------------------------
     Summary of Changes
     -----------------------------------------------------------------------------------
@@ -420,17 +484,22 @@ def total_dashboard(
         _format_header_metrics(header_metrics, header_trends)
         _display_df_agg_diff(df_agg_diff)
 
-
     if page == 'Individual Video Analysis':
-        st.write('Individual Video Analysis')
+        video = _video_select(df_agg)
+        if video != None:
+            # get just selected video data
+            agg_filtered = df_agg[df_agg['Video Title'] == video]
+            agg_sub_filtered = df_agg_sub[df_agg_sub['Video Title'] == video]
+            agg_sub_filtered = _engineer_subscriber_data(agg_sub_filtered)
+            _vid_subscriber_chart(agg_sub_filtered)
 
 
-def run_it():
+def run_it(path_to_data):
     # format page
     st.set_page_config(layout='wide')
 
     # load csvs
-    path_to_data = "/Volumes/Euans/code projects/30DaysStreamlit/Day4/data"
+
     df_agg, df_agg_sub, df_comments, df_time = load_data(path_to_data)
 
     # engineer dfs - column names and data types
@@ -443,8 +512,16 @@ def run_it():
 
     # build streamlit app
     page = build_sidebar()
-    total_dashboard(page, header_metrics, header_trends, df_agg_diff)
+    total_dashboard(
+        page,
+        header_metrics,
+        header_trends,
+        df_agg_diff,
+        df_agg,
+        df_agg_sub
+    )
 
 
 if __name__ == "__main__":
-    run_it()
+    path_to_data = "/Volumes/Euans/code projects/30DaysStreamlit/Day4/data"
+    run_it(path_to_data)
