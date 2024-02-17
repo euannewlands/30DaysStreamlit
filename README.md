@@ -41,4 +41,5 @@ Below is a log of actions related to the instruction in each "daily challenge".
 - use st.line_chart to see how streamlit makes it easy to 'just plot this'
 - explored plotting configurations with `altair` plotting
 
-### Day 10:
+### Day 10: st.selectbox
+- messed about with the various configurations of st.selecbox
