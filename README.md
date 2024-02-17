@@ -4,6 +4,7 @@ Following challenges given on https://30days.streamlit.app/
 Learning Log
 ---
 Below is an explict list of moments I found to be noteable learning experiences during completion of the 30 Days of Streamlit "challenge"
+- **Day 4:** I'm not sure if I've ever spent time formatting the output of DataFrames using Pandas Styler object, that was useful.
 - **Day 4:** I'd never used the `plotly` package before - I was familiar with `matplotlib`, from university coding, and I had some knowledge about `seaborn`, from some earlier Data Engineering projects.
 
 ---
@@ -26,3 +27,12 @@ Below is a log of actions related to the instruction in each "daily challenge".
 - Basic feature engineering using `pandas`
 - Fiddly formatting of DataFrames
 - Plotly bar and scatter charts
+
+### Day 5: st.write
+- investigated th variability of st.write, where the output format is dependent on the input object
+
+### Day 6-7: deploy to Streamlit Community Cloud
+- The challenge took me through steps on how to deploy public apps to the community cloud
+
+### Day 8 st.slider
+- Added a slider for continuous values - I investigated how the step parameter worked for a datetime slider using a datetime.timedelta object
