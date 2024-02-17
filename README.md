@@ -7,6 +7,7 @@ Below is an explict list of moments I found to be noteable learning experiences 
 - **Day 4:** I'm not sure if I've ever spent time formatting the output of DataFrames using Pandas Styler object, that was useful.
 - **Day 4:** I'd never used the `plotly` package before - I was familiar with `matplotlib`, from university coding, and I had some knowledge about `seaborn`, from some earlier Data Engineering projects.
 - **Day 9:** I took the time to plot some life expectancy data using the `altair` package, which was new to me
+- **Day 14:** I didn't previously know about Streamlit Components, community built extensions to Streamlit. Now I do!
 ---
 
 Below is a log of actions related to the instruction in each "daily challenge".
@@ -47,5 +48,8 @@ Below is a log of actions related to the instruction in each "daily challenge".
 ### Day 11: st.multiselect
 - messed about with the various configurations of st.multiselect
 
-### Day 11: st.checkbox
+### Day 12: st.checkbox
 - messed about with the various configurations of st.checkbox
+
+### Day 14: Streamlit Components
+- learnt about streamlit components, and where to find more!
