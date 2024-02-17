@@ -46,3 +46,6 @@ Below is a log of actions related to the instruction in each "daily challenge".
 
 ### Day 11: st.multiselect
 - messed about with the various configurations of st.multiselect
+
+### Day 11: st.checkbox
+- messed about with the various configurations of st.checkbox
