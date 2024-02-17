@@ -53,3 +53,7 @@ Below is a log of actions related to the instruction in each "daily challenge".
 
 ### Day 14: Streamlit Components
 - learnt about streamlit components, and where to find more!
+- ran the common ydata_profiling and presented the results in streamlit
+
+### Day 15: st.latex
+- I learn Streamlit supports Latex code. I included a formular I used in one of my Astrophysics projects at university
