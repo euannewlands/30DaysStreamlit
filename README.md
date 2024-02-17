@@ -6,7 +6,7 @@ Learning Log
 Below is an explict list of moments I found to be noteable learning experiences during completion of the 30 Days of Streamlit "challenge"
 - **Day 4:** I'm not sure if I've ever spent time formatting the output of DataFrames using Pandas Styler object, that was useful.
 - **Day 4:** I'd never used the `plotly` package before - I was familiar with `matplotlib`, from university coding, and I had some knowledge about `seaborn`, from some earlier Data Engineering projects.
-
+- **Day 9:** I took the time to plot some life expectancy data using the `altair` package, which was new to me
 ---
 
 Below is a log of actions related to the instruction in each "daily challenge".
@@ -36,3 +36,9 @@ Below is a log of actions related to the instruction in each "daily challenge".
 
 ### Day 8 st.slider
 - Added a slider for continuous values - I investigated how the step parameter worked for a datetime slider using a datetime.timedelta object
+
+### Day 9: st.line_chart
+- use st.line_chart to see how streamlit makes it easy to 'just plot this'
+- explored plotting configurations with `altair` plotting
+
+### Day 10:
